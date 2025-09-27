@@ -1,10 +1,10 @@
 use clap::Parser;
 use futures::stream::{self, StreamExt};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use trust_dns_resolver::TokioAsyncResolver;
 use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
-
 /// A lightning-fast, asynchronous DNS subdomain scanner
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -30,9 +30,23 @@ async fn main() {
         .lines()
         .map(|line| line.expect("Failed to read line"))
         .collect();
+    let pb = ProgressBar::new(wordlist.len() as u64);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta})",
+            )
+            .unwrap()
+            .progress_chars("#>-"),
+    );
 
+    // Turn the wordlist into a stream and attach the progress bar
+    let stream = stream::iter(wordlist.into_iter().map(|word| {
+        pb.inc(1); // Increment the bar for each item
+        word
+    }));
     // Create a stream from our wordlist vector. A stream is like an async iterator.
-    let stream = stream::iter(wordlist);
+    //let stream = stream::iter(wordlist);
 
     // Create a single resolver to be shared across all async tasks
     let resolver = TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
@@ -63,4 +77,5 @@ async fn main() {
             }
         })
         .await; // `.await` waits for all the concurrent tasks to finish.
+    pb.finish_with_message("Scan complete");
 }
