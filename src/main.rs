@@ -39,6 +39,11 @@ async fn main() {
 
     println!("Scanning for subdomains on: {}", &args.domain);
 
+    // ---- Code Explanation: Concurrent Processing ----
+    // `for_each_concurrent` is the core of our speed improvement.
+    // It takes a stream of items and processes them concurrently.
+    // The `200` here is the concurrency limit: it will run up to 200
+    // DNS lookups at the same time.
     stream
         .for_each_concurrent(200, |word| {
             // We need to clone the resolver and domain for each async task.
